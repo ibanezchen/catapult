@@ -68,6 +68,8 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
     this.pseudoThreadCounter = 1;
     this.parsers_ = [];
     this.eventHandlers_ = {};
+    this.eventPrefixHandlers_ = [];
+    this.eventPrefixNames_ = [];
     this.haveClockSyncedMonotonicToGlobal_ = false;
     this.clockDomainId_ = tr.model.ClockDomainId.LINUX_FTRACE_GLOBAL;
   }
@@ -392,6 +394,11 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
     registerEventHandler: function(eventName, handler) {
       // TODO(sleffler) how to handle conflicts?
       this.eventHandlers_[eventName] = handler;
+    },
+
+    registerPrefixEventHandler: function(eventPrefix, handler) {
+      this.eventPrefixNames_.push(eventPrefix);
+      this.eventPrefixHandlers_.push(handler);
     },
 
     /**
@@ -851,6 +858,13 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       this.forEachLine_(function(text, eventBase, cpuNumber, pid, ts) {
         var eventName = eventBase.eventName;
         var handler = this.eventHandlers_[eventName];
+        if (!handler){
+          for(var i = 0 ; i < this.eventPrefixNames_.length; i ++){
+            if(eventName.startsWith(this.eventPrefixNames_[i])){
+              handler = this.eventPrefixHandlers_[i];
+            }
+          }
+        }
         if (!handler) {
           this.model_.importWarning({
             type: 'parse_error',
