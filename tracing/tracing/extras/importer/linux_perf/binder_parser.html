@@ -145,7 +145,12 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
     importer.registerEventHandler('binder_transaction_received',
         BinderParser.prototype.
             binderTransactionReceived.bind(this));
-
+    importer.registerPrefixEventHandler('binder',
+        BinderParser.prototype.
+            binderAll.bind(this));
+    importer.registerEventHandler('binder_event_end',
+        BinderParser.prototype.
+            binderEventEnd.bind(this));
     this.model_ = importer.model;
     this.kthreadlookup = {};
     this.importer_ = importer;
@@ -157,6 +162,38 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
 
   BinderParser.prototype = {
     __proto__: Parser.prototype,
+
+    binderAll: function(eventName, cpuNumber, pid, ts, eventBase) {
+      var tgid = parseInt(eventBase.tgid);
+      this.doNameMappings(pid, tgid, eventName.threadName);
+      var kthread = this.importer_.
+          getOrCreateBinderKernelThread(eventBase.threadName, tgid, pid);
+
+      kthread.genericStart = ts;
+      kthread.genericEvent = eventName;
+      kthread.genericDetails=eventBase.details;
+
+      return true
+    },
+
+    binderEventEnd: function(eventName, cpuNumber, pid, ts, eventBase) {
+      var tgid = parseInt(eventBase.tgid);
+      this.doNameMappings(pid, tgid, eventName.threadName);
+      var kthread = this.importer_.
+          getOrCreateBinderKernelThread(eventBase.threadName, tgid, pid);
+
+      if (kthread.genericStart === undefined) return false;
+
+      kthread.thread.sliceGroup.pushCompleteSlice('binder',
+          kthread.genericEvent,
+          kthread.genericStart,
+          ts - kthread.genericStart,
+          0, 0,
+          {"details":kthread.genericDetails});
+      kthread.genericStart = undefined;
+
+      return true
+    },
 
     binderLock: function(eventName, cpuNumber, pid, ts, eventBase) {
       var tgid = parseInt(eventBase.tgid);
