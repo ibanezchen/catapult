@@ -148,6 +148,9 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
     importer.registerPrefixEventHandler('binder',
         BinderParser.prototype.
             binderAll.bind(this));
+    importer.registerPrefixEventHandler('kp',
+        BinderParser.prototype.
+            binderAll.bind(this));
     this.model_ = importer.model;
     this.kthreadlookup = {};
     this.importer_ = importer;
